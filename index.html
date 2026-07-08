@@ -335,7 +335,7 @@ async function calculate() {
   document.getElementById('synastryResult').style.display = 'none';
 
   if (!validPerson('A') || (mode === 'synastry' && !validPerson('B'))) {
-    showError('Fill in the date, city, and either a time or "I don\\'t know my birth time" for everyone before calculating.');
+    showError('Fill in the date, city, and either a time or check "I don\'t know my birth time" for everyone before calculating.');
     return;
   }
 
