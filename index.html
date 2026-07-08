@@ -293,8 +293,22 @@
   </div>
 
   <div class="card result-section" id="synastryResult">
-    <label class="section-label">Synastry Result (raw)</label>
-    <pre id="synastryRaw"></pre>
+    <details open>
+      <summary id="personALabel">Person A — Placements</summary>
+      <div id="planetsListA"></div>
+    </details>
+    <details open>
+      <summary id="personBLabel">Person B — Placements</summary>
+      <div id="planetsListB"></div>
+    </details>
+    <details open>
+      <summary>Synastry Aspects</summary>
+      <div id="synastryAspects"></div>
+    </details>
+    <details>
+      <summary>Full Raw Response</summary>
+      <pre id="synastryRaw"></pre>
+    </details>
   </div>
 
   <p class="footer-line">It's not coincidence — it's Co-Inside-Nce.</p>
@@ -406,6 +420,39 @@ function extractAspects(data) {
   return [];
 }
 
+function extractSynastrySubjects(data) {
+  const containers = [data.subjects, data];
+  const keyPairs = [['person_a', 'person_b'], ['first_subject', 'second_subject'], ['subject_a', 'subject_b'], ['a', 'b']];
+  for (const container of containers) {
+    if (!container) continue;
+    for (const [ka, kb] of keyPairs) {
+      if (container[ka] && container[kb]) return [container[ka], container[kb]];
+    }
+  }
+  return [null, null];
+}
+
+function extractSynastryAspects(data) {
+  const candidates = [data.aspects, data.synastry_aspects, data.cross_aspects, data.aspects_summary?.list];
+  for (const c of candidates) {
+    if (Array.isArray(c)) return c;
+  }
+  return [];
+}
+
+function planetRowsHtml(planets) {
+  return planets.length
+    ? planets.map(p => {
+        const hl = BIONIC_SIX.includes(p.name);
+        return `<div class="planet-row${hl ? ' highlight' : ''}">
+          <span class="pname">${p.name}</span>
+          <span class="sign-col">${p.sign || ''} ${p.pos != null ? Number(p.pos).toFixed(1) + '°' : ''}</span>
+          <span class="house-col">House ${p.house ?? '—'}${p.retrograde ? ' ℞' : ''}</span>
+        </div>`;
+      }).join('')
+    : '<p style="color:#8a7aa8;">No planet data found in this response — check Full Raw Response below.</p>';
+}
+
 function showError(msg, raw) {
   const box = document.getElementById('errorBox');
   box.style.display = 'block';
@@ -444,8 +491,7 @@ async function calculate() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(JSON.stringify(data));
-      document.getElementById('synastryRaw').textContent = JSON.stringify(data, null, 2);
-      document.getElementById('synastryResult').style.display = 'block';
+      renderSynastry(data);
     }
   } catch (e) {
     showError('Something went wrong reaching the calculator.', e.message);
@@ -460,27 +506,43 @@ function renderNatal(data) {
   const houses = extractHouses(data);
   const aspects = extractAspects(data);
 
-  document.getElementById('planetsList').innerHTML = planets.length
-    ? planets.map(p => {
-        const hl = BIONIC_SIX.includes(p.name);
-        return `<div class="planet-row${hl ? ' highlight' : ''}">
-          <span class="pname">${p.name}</span>
-          <span class="sign-col">${p.sign || ''} ${p.pos != null ? Number(p.pos).toFixed(1) + '°' : ''}</span>
-          <span class="house-col">House ${p.house ?? '—'}${p.retrograde ? ' ℞' : ''}</span>
-        </div>`;
-      }).join('')
-    : '<p style="color:#8a7aa8;">No planet data returned.</p>';
+  document.getElementById('planetsList').innerHTML = planetRowsHtml(planets);
 
   document.getElementById('housesList').innerHTML = houses.length
     ? houses.map((h, i) => `<div class="house-row"><span>House ${h.house ?? i + 1}</span><span class="sign-col">${h.sign || ''} ${h.cusp != null ? Number(h.cusp).toFixed(1) + '°' : ''}</span></div>`).join('')
     : '<p style="color:#8a7aa8;">No house data returned.</p>';
 
   document.getElementById('aspectsList').innerHTML = aspects.length
-    ? aspects.map(a => `<div class="aspect-row"><span>${a.point_1 || a.p1} — ${a.point_2 || a.p2}</span><span class="sign-col">${a.aspect || a.type}</span><span class="house-col">${a.orb != null ? Number(a.orb).toFixed(1) + '° orb' : ''}</span></div>`).join('')
+    ? aspects.map(a => `<div class="aspect-row"><span>${a.point_1 || a.p1 || a.p1_name} — ${a.point_2 || a.p2 || a.p2_name}</span><span class="sign-col">${a.aspect || a.type}</span><span class="house-col">${(a.orb ?? a.orbit) != null ? Number(a.orb ?? a.orbit).toFixed(1) + '° orb' : ''}</span></div>`).join('')
     : '<p style="color:#8a7aa8;">No aspect data returned.</p>';
 
   document.getElementById('rawResponse').textContent = JSON.stringify(data, null, 2);
   document.getElementById('natalResult').style.display = 'block';
+}
+
+function renderSynastry(data) {
+  const [subjA, subjB] = extractSynastrySubjects(data);
+  const nameA = document.getElementById('nameA').value || 'Person A';
+  const nameB = document.getElementById('nameB').value || 'Person B';
+
+  document.getElementById('personALabel').textContent = nameA + ' — Placements';
+  document.getElementById('personBLabel').textContent = nameB + ' — Placements';
+
+  document.getElementById('planetsListA').innerHTML = planetRowsHtml(extractPlanets(subjA || {}));
+  document.getElementById('planetsListB').innerHTML = planetRowsHtml(extractPlanets(subjB || {}));
+
+  const aspects = extractSynastryAspects(data);
+  document.getElementById('synastryAspects').innerHTML = aspects.length
+    ? aspects.map(a => {
+        const p1 = a.point_1 || a.p1 || a.p1_name || a.planet1;
+        const p2 = a.point_2 || a.p2 || a.p2_name || a.planet2;
+        const orb = a.orb ?? a.orbit;
+        return `<div class="aspect-row"><span>${p1} — ${p2}</span><span class="sign-col">${a.aspect || a.type}</span><span class="house-col">${orb != null ? Number(orb).toFixed(1) + '° orb' : ''}</span></div>`;
+      }).join('')
+    : '<p style="color:#8a7aa8;">No aspect data found in this response — check Full Raw Response below.</p>';
+
+  document.getElementById('synastryRaw').textContent = JSON.stringify(data, null, 2);
+  document.getElementById('synastryResult').style.display = 'block';
 }
 </script>
 </body>
