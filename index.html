@@ -198,6 +198,45 @@
     font-size: 13px;
     margin-top: 28px;
   }
+  .archetype-box {
+    background: rgba(212,175,97,0.08);
+    border: 1px solid #4a3466;
+    border-radius: 4px;
+    padding: 14px 16px;
+    margin-bottom: 16px;
+  }
+  .archetype-label {
+    font-family: 'Cinzel', serif;
+    color: #d4af61;
+    font-size: 15px;
+    letter-spacing: 1px;
+    margin-bottom: 6px;
+  }
+  .archetype-line {
+    color: #b8a6d9;
+    font-size: 15px;
+    font-style: italic;
+  }
+  .score-row { margin-bottom: 10px; }
+  .score-label {
+    display: flex;
+    justify-content: space-between;
+    color: #8a7aa8;
+    font-size: 13px;
+    text-transform: capitalize;
+    margin-bottom: 3px;
+  }
+  .score-bar-bg {
+    background: #0d0716;
+    border-radius: 3px;
+    height: 8px;
+    overflow: hidden;
+  }
+  .score-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #6a4a8a, #d4af61);
+    border-radius: 3px;
+  }
 </style>
 </head>
 <body>
@@ -294,6 +333,10 @@
   </div>
 
   <div class="card result-section" id="synastryResult">
+    <details open>
+      <summary>Compatibility Overview</summary>
+      <div id="compatOverview"></div>
+    </details>
     <details open>
       <summary id="personALabel">Person A — Placements</summary>
       <div id="planetsListA"></div>
@@ -436,23 +479,21 @@ function extractAspects(data) {
 }
 
 function extractSynastrySubjects(data) {
-  const containers = [data.subjects, data];
-  const keyPairs = [['person_a', 'person_b'], ['first_subject', 'second_subject'], ['subject_a', 'subject_b'], ['a', 'b']];
-  for (const container of containers) {
-    if (!container) continue;
-    for (const [ka, kb] of keyPairs) {
-      if (container[ka] && container[kb]) return [container[ka], container[kb]];
-    }
-  }
-  return [null, null];
+  const a = data?.natal?.person_a || data?.person_a;
+  const b = data?.natal?.person_b || data?.person_b;
+  return [a, b];
 }
 
 function extractSynastryAspects(data) {
-  const candidates = [data.aspects, data.synastry_aspects, data.cross_aspects, data.aspects_summary?.list];
-  for (const c of candidates) {
-    if (Array.isArray(c)) return c;
-  }
-  return [];
+  return Array.isArray(data?.synastry?.aspects) ? data.synastry.aspects : [];
+}
+
+function extractCompatScores(data) {
+  return data?.synastry?.scores || null;
+}
+
+function extractArchetype(data) {
+  return data?.synastry?.archetype || null;
 }
 
 function planetRowsHtml(planets) {
@@ -546,13 +587,38 @@ function renderSynastry(data) {
   document.getElementById('planetsListA').innerHTML = planetRowsHtml(extractPlanets(subjA || {}));
   document.getElementById('planetsListB').innerHTML = planetRowsHtml(extractPlanets(subjB || {}));
 
+  // Compatibility overview: archetype + score bars
+  const archetype = extractArchetype(data);
+  const scores = extractCompatScores(data);
+  let overviewHtml = '';
+  if (archetype) {
+    overviewHtml += `<div class="archetype-box">
+      <div class="archetype-label">${archetype.label || ''}</div>
+      <div class="archetype-line">${archetype.one_liner || ''}</div>
+    </div>`;
+  }
+  if (scores) {
+    const rows = ['overall', 'romance', 'communication', 'stability', 'intimacy', 'growth'];
+    overviewHtml += rows.filter(k => scores[k] != null).map(k => `
+      <div class="score-row">
+        <div class="score-label"><span>${k}</span><span>${scores[k]}/100</span></div>
+        <div class="score-bar-bg"><div class="score-bar-fill" style="width:${scores[k]}%"></div></div>
+      </div>`).join('');
+  }
+  document.getElementById('compatOverview').innerHTML = overviewHtml || '<p style="color:#8a7aa8;">No compatibility summary found in this response.</p>';
+
   const aspects = extractSynastryAspects(data);
   document.getElementById('synastryAspects').innerHTML = aspects.length
-    ? aspects.map(a => {
-        const p1 = a.point_1 || a.p1 || a.p1_name || a.planet1;
-        const p2 = a.point_2 || a.p2 || a.p2_name || a.planet2;
-        const orb = a.orb ?? a.orbit;
-        return `<div class="aspect-row"><span>${p1} — ${p2}</span><span class="sign-col">${a.aspect || a.type}</span><span class="house-col">${orb != null ? Number(orb).toFixed(1) + '° orb' : ''}</span></div>`;
+    ? aspects.slice(0, 30).map(a => {
+        const p1 = (a.a_point || '').replace(/_/g, ' ');
+        const p2 = (a.b_point || '').replace(/_/g, ' ');
+        const orb = a.orb_deg;
+        const polarityColor = a.polarity === 'supportive' ? '#7ea87e' : a.polarity === 'challenging' ? '#c97a7a' : '#b8a6d9';
+        return `<div class="aspect-row">
+          <span style="text-transform:capitalize;">${p1} — ${p2}</span>
+          <span style="color:${polarityColor};text-transform:capitalize;">${a.aspect}</span>
+          <span class="house-col">${orb != null ? Number(orb).toFixed(1) + '° orb' : ''}</span>
+        </div>`;
       }).join('')
     : '<p style="color:#8a7aa8;">No aspect data found in this response — check Full Raw Response below.</p>';
 
