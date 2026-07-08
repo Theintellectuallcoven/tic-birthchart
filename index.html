@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Birth Chart Calculator — The Intellectual Coven</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;900&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&display=swap">
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background: radial-gradient(ellipse at top, #1e1035 0%, #0a0612 60%);
+    font-family: 'Cormorant Garamond', serif;
+    color: #f0e6d2;
+    padding: 32px 16px 64px;
+  }
+  .wrap { max-width: 640px; margin: 0 auto; }
+  h1 {
+    font-family: 'Cinzel', serif;
+    font-weight: 700;
+    font-size: 28px;
+    text-align: center;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin: 10px 0 0;
+  }
+  .tagline { text-align: center; color: #8a7aa8; font-style: italic; margin-top: 6px; }
+  .symbol-row { display: flex; justify-content: center; gap: 10px; color: #d4af61; font-size: 20px; }
+  .card {
+    background: linear-gradient(160deg, #1a0f2e 0%, #120a1f 100%);
+    border: 1px solid #4a3466;
+    border-radius: 4px;
+    padding: 20px 18px;
+    margin-bottom: 14px;
+  }
+  label.section-label {
+    font-family: 'Cinzel', serif;
+    color: #d4af61;
+    font-size: 13px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    display: block;
+    margin-bottom: 12px;
+  }
+  input, select {
+    width: 100%;
+    box-sizing: border-box;
+    background: #0d0716;
+    border: 1px solid #3a2a54;
+    border-radius: 3px;
+    padding: 10px 12px;
+    color: #f0e6d2;
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 16px;
+    margin-top: 8px;
+    outline: none;
+    color-scheme: dark;
+  }
+  .row { display: flex; gap: 8px; margin-top: 8px; }
+  .row input { margin-top: 0; }
+  .mode-toggle { display: flex; gap: 8px; margin-bottom: 20px; }
+  .mode-btn {
+    flex: 1;
+    padding: 10px 0;
+    background: transparent;
+    border: 1px solid #3a2a54;
+    border-radius: 3px;
+    color: #8a7aa8;
+    font-family: 'Cinzel', serif;
+    font-size: 12px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    cursor: pointer;
+  }
+  .mode-btn.active {
+    background: linear-gradient(135deg, #4a3466, #2d1b4e);
+    border-color: #d4af61;
+    color: #d4af61;
+  }
+  #personB { display: none; }
+  .calc-btn {
+    width: 100%;
+    padding: 14px 0;
+    background: linear-gradient(135deg, #d4af61, #a8823f);
+    border: none;
+    border-radius: 3px;
+    color: #0a0612;
+    font-family: 'Cinzel', serif;
+    font-weight: 700;
+    font-size: 14px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    cursor: pointer;
+    margin-bottom: 20px;
+  }
+  .calc-btn:disabled { background: #3a2a54; color: #8a7aa8; cursor: default; }
+  .error-box {
+    background: #2e1220;
+    border: 1px solid #7a3550;
+    border-radius: 4px;
+    padding: 12px 16px;
+    color: #e8a5b8;
+    margin-bottom: 16px;
+    display: none;
+  }
+  .result-section { display: none; }
+  .planet-row, .house-row, .aspect-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 12px;
+    font-size: 16px;
+  }
+  .planet-row.highlight {
+    background: rgba(212,175,97,0.08);
+    border-left: 2px solid #d4af61;
+  }
+  .planet-row.highlight .pname { font-weight: 600; }
+  .sign-col { color: #b8a6d9; }
+  .house-col { color: #8a7aa8; }
+  details {
+    border-bottom: 1px solid #3a2a54;
+    padding-bottom: 10px;
+    margin-bottom: 10px;
+  }
+  summary {
+    font-family: 'Cinzel', serif;
+    color: #d4af61;
+    font-size: 14px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    cursor: pointer;
+    padding: 10px 0;
+  }
+  pre {
+    color: #8a7aa8;
+    font-family: monospace;
+    font-size: 11px;
+    white-space: pre-wrap;
+    max-height: 300px;
+    overflow: auto;
+  }
+  .footer-line {
+    text-align: center;
+    color: #5a4a78;
+    font-style: italic;
+    font-size: 13px;
+    margin-top: 28px;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="symbol-row">✦ ☾ ✦</div>
+  <h1>Birth Chart Calculator</h1>
+  <p class="tagline">The Intellectual Coven · Knowledge · Power · Ascension</p>
+
+  <div class="mode-toggle">
+    <button class="mode-btn active" id="modeNatal" onclick="setMode('natal')">Natal Chart</button>
+    <button class="mode-btn" id="modeSynastry" onclick="setMode('synastry')">Synastry</button>
+  </div>
+
+  <div class="card" id="personA">
+    <label class="section-label" id="labelA">Birth Details</label>
+    <input type="text" id="nameA" placeholder="Name">
+    <div class="row">
+      <input type="date" id="dateA" style="flex:1.3">
+      <input type="time" id="timeA" style="flex:1">
+    </div>
+    <input type="text" id="cityA" placeholder="Birth city, e.g. Newark, NJ">
+  </div>
+
+  <div class="card" id="personB">
+    <label class="section-label">Person B</label>
+    <input type="text" id="nameB" placeholder="Name">
+    <div class="row">
+      <input type="date" id="dateB" style="flex:1.3">
+      <input type="time" id="timeB" style="flex:1">
+    </div>
+    <input type="text" id="cityB" placeholder="Birth city, e.g. Newark, NJ">
+  </div>
+
+  <button class="calc-btn" id="calcBtn" onclick="calculate()">Calculate</button>
+
+  <div class="error-box" id="errorBox"></div>
+
+  <div class="card result-section" id="natalResult">
+    <details open>
+      <summary>Planets & Placements</summary>
+      <div id="planetsList"></div>
+    </details>
+    <details>
+      <summary>Houses</summary>
+      <div id="housesList"></div>
+    </details>
+    <details>
+      <summary>Aspects</summary>
+      <div id="aspectsList"></div>
+    </details>
+    <details>
+      <summary>Full Raw Response</summary>
+      <pre id="rawResponse"></pre>
+    </details>
+  </div>
+
+  <div class="card result-section" id="synastryResult">
+    <label class="section-label">Synastry Result (raw)</label>
+    <pre id="synastryRaw"></pre>
+  </div>
+
+  <p class="footer-line">It's not coincidence — it's Co-Inside-Nce.</p>
+</div>
+
+<script>
+const BIONIC_SIX = ["Sun", "Moon", "Ascendant", "Mercury", "Venus", "Mars"];
+let mode = "natal";
+
+function setMode(m) {
+  mode = m;
+  document.getElementById('modeNatal').classList.toggle('active', m === 'natal');
+  document.getElementById('modeSynastry').classList.toggle('active', m === 'synastry');
+  document.getElementById('personB').style.display = m === 'synastry' ? 'block' : 'none';
+  document.getElementById('labelA').textContent = m === 'synastry' ? 'Person A' : 'Birth Details';
+  document.getElementById('natalResult').style.display = 'none';
+  document.getElementById('synastryResult').style.display = 'none';
+  document.getElementById('errorBox').style.display = 'none';
+}
+
+function buildPayload(prefix) {
+  const date = document.getElementById('date' + prefix).value;
+  const time = document.getElementById('time' + prefix).value || '00:00';
+  const [year, month, day] = date.split('-').map(Number);
+  const [hour, minute] = time.split(':').map(Number);
+  return {
+    name: document.getElementById('name' + prefix).value || 'Subject',
+    year, month, day, hour, minute,
+    city: document.getElementById('city' + prefix).value,
+    tz_str: "AUTO"
+  };
+}
+
+function validPerson(prefix) {
+  return document.getElementById('date' + prefix).value &&
+         document.getElementById('time' + prefix).value &&
+         document.getElementById('city' + prefix).value;
+}
+
+function extractPlanets(data) { return Array.isArray(data?.planets) ? data.planets : []; }
+function extractHouses(data) { return Array.isArray(data?.houses) ? data.houses : []; }
+function extractAspects(data) {
+  if (Array.isArray(data?.aspects)) return data.aspects;
+  if (Array.isArray(data?.aspects_summary?.list)) return data.aspects_summary.list;
+  return [];
+}
+
+function showError(msg, raw) {
+  const box = document.getElementById('errorBox');
+  box.style.display = 'block';
+  box.innerHTML = msg + (raw ? '<pre style="margin-top:10px;color:#c88;">' + raw + '</pre>' : '');
+}
+
+async function calculate() {
+  document.getElementById('errorBox').style.display = 'none';
+  document.getElementById('natalResult').style.display = 'none';
+  document.getElementById('synastryResult').style.display = 'none';
+
+  if (!validPerson('A') || (mode === 'synastry' && !validPerson('B'))) {
+    showError('Fill in the date, time, and city for everyone before calculating.');
+    return;
+  }
+
+  const btn = document.getElementById('calcBtn');
+  btn.disabled = true;
+  btn.textContent = 'Reading the Sky…';
+
+  try {
+    if (mode === 'natal') {
+      const res = await fetch('/api/natal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(buildPayload('A'))
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(JSON.stringify(data));
+      renderNatal(data);
+    } else {
+      const res = await fetch('/api/synastry', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ first_subject: buildPayload('A'), second_subject: buildPayload('B') })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(JSON.stringify(data));
+      document.getElementById('synastryRaw').textContent = JSON.stringify(data, null, 2);
+      document.getElementById('synastryResult').style.display = 'block';
+    }
+  } catch (e) {
+    showError('Something went wrong reaching the calculator.', e.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Calculate';
+  }
+}
+
+function renderNatal(data) {
+  const planets = extractPlanets(data);
+  const houses = extractHouses(data);
+  const aspects = extractAspects(data);
+
+  document.getElementById('planetsList').innerHTML = planets.length
+    ? planets.map(p => {
+        const hl = BIONIC_SIX.includes(p.name);
+        return `<div class="planet-row${hl ? ' highlight' : ''}">
+          <span class="pname">${p.name}</span>
+          <span class="sign-col">${p.sign || ''} ${p.pos != null ? Number(p.pos).toFixed(1) + '°' : ''}</span>
+          <span class="house-col">House ${p.house ?? '—'}${p.retrograde ? ' ℞' : ''}</span>
+        </div>`;
+      }).join('')
+    : '<p style="color:#8a7aa8;">No planet data returned.</p>';
+
+  document.getElementById('housesList').innerHTML = houses.length
+    ? houses.map((h, i) => `<div class="house-row"><span>House ${h.house ?? i + 1}</span><span class="sign-col">${h.sign || ''} ${h.cusp != null ? Number(h.cusp).toFixed(1) + '°' : ''}</span></div>`).join('')
+    : '<p style="color:#8a7aa8;">No house data returned.</p>';
+
+  document.getElementById('aspectsList').innerHTML = aspects.length
+    ? aspects.map(a => `<div class="aspect-row"><span>${a.point_1 || a.p1} — ${a.point_2 || a.p2}</span><span class="sign-col">${a.aspect || a.type}</span><span class="house-col">${a.orb != null ? Number(a.orb).toFixed(1) + '° orb' : ''}</span></div>`).join('')
+    : '<p style="color:#8a7aa8;">No aspect data returned.</p>';
+
+  document.getElementById('rawResponse').textContent = JSON.stringify(data, null, 2);
+  document.getElementById('natalResult').style.display = 'block';
+}
+</script>
+</body>
+</html>
