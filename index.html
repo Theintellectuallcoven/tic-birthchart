@@ -1,5 +1,4 @@
-
-    <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
@@ -441,7 +440,7 @@ async function calculate() {
       const res = await fetch('/api/synastry', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ first_subject: buildPayload('A'), second_subject: buildPayload('B') })
+        body: JSON.stringify({ person_a: buildPayload('A'), person_b: buildPayload('B') })
       });
       const data = await res.json();
       if (!res.ok) throw new Error(JSON.stringify(data));
