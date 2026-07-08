@@ -1,4 +1,5 @@
-<!DOCTYPE html>
+
+    <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
@@ -108,6 +109,28 @@
     font-size: 12px;
     margin-top: 4px;
   }
+  .city-wrap { position: relative; }
+  .city-dropdown {
+    position: absolute;
+    z-index: 10;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: #150c24;
+    border: 1px solid #4a3466;
+    border-radius: 3px;
+    margin-top: 2px;
+    max-height: 220px;
+    overflow-y: auto;
+    display: none;
+  }
+  .city-option {
+    padding: 10px 12px;
+    cursor: pointer;
+    font-size: 15px;
+    border-bottom: 1px solid #2a1d40;
+  }
+  .city-option:last-child { border-bottom: none; }
   .calc-btn {
     width: 100%;
     padding: 14px 0;
@@ -211,8 +234,11 @@
     </div>
 
     <label class="field-label" for="cityA">Birth city</label>
-    <input type="text" id="cityA" placeholder="e.g. Camden, New Jersey, USA">
-    <p class="city-hint">Format: City, State/Region, Country — this helps the calculator find the right location.</p>
+    <div class="city-wrap">
+      <input type="text" id="cityA" placeholder="e.g. Camden, New Jersey, USA" oninput="onCityInput('A')" autocomplete="off">
+      <div class="city-dropdown" id="dropdownA"></div>
+    </div>
+    <p class="city-hint">Pick a suggestion, or type: City, State/Region, Country.</p>
   </div>
 
   <div class="card" id="personB">
@@ -237,8 +263,11 @@
     </div>
 
     <label class="field-label" for="cityB">Birth city</label>
-    <input type="text" id="cityB" placeholder="e.g. Camden, New Jersey, USA">
-    <p class="city-hint">Format: City, State/Region, Country — this helps the calculator find the right location.</p>
+    <div class="city-wrap">
+      <input type="text" id="cityB" placeholder="e.g. Camden, New Jersey, USA" oninput="onCityInput('B')" autocomplete="off">
+      <div class="city-dropdown" id="dropdownB"></div>
+    </div>
+    <p class="city-hint">Pick a suggestion, or type: City, State/Region, Country.</p>
   </div>
 
   <button class="calc-btn" id="calcBtn" onclick="calculate()">Calculate</button>
@@ -275,6 +304,54 @@
 <script>
 const BIONIC_SIX = ["Sun", "Moon", "Ascendant", "Mercury", "Venus", "Mars"];
 let mode = "natal";
+let debounceTimers = {};
+let selectedPlace = { A: null, B: null };
+
+function onCityInput(prefix) {
+  selectedPlace[prefix] = null;
+  const query = document.getElementById('city' + prefix).value;
+  const dropdown = document.getElementById('dropdown' + prefix);
+
+  clearTimeout(debounceTimers[prefix]);
+  if (!query || query.length < 2) {
+    dropdown.style.display = 'none';
+    return;
+  }
+
+  debounceTimers[prefix] = setTimeout(async () => {
+    try {
+      const res = await fetch('/api/geo?query=' + encodeURIComponent(query));
+      const data = await res.json();
+      const list = Array.isArray(data) ? data : (data.results || data.cities || data.geonames || []);
+      if (!list.length) {
+        dropdown.style.display = 'none';
+        return;
+      }
+      dropdown.innerHTML = list.map((g, i) => {
+        const label = [g.name || g.city, g.admin1 || g.region || g.state, g.country || g.country_name].filter(Boolean).join(', ');
+        return `<div class="city-option" data-idx="${i}">${label}</div>`;
+      }).join('');
+      dropdown.style.display = 'block';
+      Array.from(dropdown.children).forEach((el, i) => {
+        el.addEventListener('mousedown', (e) => e.preventDefault());
+        el.addEventListener('click', () => selectCity(prefix, list[i]));
+      });
+    } catch {
+      dropdown.style.display = 'none';
+    }
+  }, 400);
+}
+
+function selectCity(prefix, g) {
+  const label = [g.name || g.city, g.admin1 || g.region || g.state, g.country || g.country_name].filter(Boolean).join(', ');
+  document.getElementById('city' + prefix).value = label;
+  document.getElementById('dropdown' + prefix).style.display = 'none';
+  selectedPlace[prefix] = {
+    lat: g.lat ?? g.latitude,
+    lng: g.lng ?? g.longitude,
+    timezone: g.timezone
+  };
+}
 
 function setMode(m) {
   mode = m;
@@ -300,13 +377,20 @@ function buildPayload(prefix) {
   const time = unknownTime ? '12:00' : (document.getElementById('time' + prefix).value || '00:00');
   const [year, month, day] = date.split('-').map(Number);
   const [hour, minute] = time.split(':').map(Number);
-  return {
+  const payload = {
     name: document.getElementById('name' + prefix).value || 'Subject',
     year, month, day, hour, minute,
     city: document.getElementById('city' + prefix).value,
     tz_str: "AUTO",
     time_known: !unknownTime
   };
+  const place = selectedPlace[prefix];
+  if (place && place.lat != null && place.lng != null) {
+    payload.lat = Number(place.lat);
+    payload.lng = Number(place.lng);
+    if (place.timezone) payload.tz_str = place.timezone;
+  }
+  return payload;
 }
 
 function validPerson(prefix) {
