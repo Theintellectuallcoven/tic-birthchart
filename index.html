@@ -43,6 +43,15 @@
     display: block;
     margin-bottom: 12px;
   }
+  label.field-label {
+    font-family: 'Cormorant Garamond', serif;
+    color: #8a7aa8;
+    font-size: 13px;
+    display: block;
+    margin-top: 12px;
+    margin-bottom: 2px;
+  }
+  label.field-label.first { margin-top: 0; }
   input, select {
     width: 100%;
     box-sizing: border-box;
@@ -53,12 +62,11 @@
     color: #f0e6d2;
     font-family: 'Cormorant Garamond', serif;
     font-size: 16px;
-    margin-top: 8px;
     outline: none;
     color-scheme: dark;
   }
-  .row { display: flex; gap: 8px; margin-top: 8px; }
-  .row input { margin-top: 0; }
+  .row { display: flex; gap: 8px; }
+  .row-item { flex: 1; }
   .mode-toggle { display: flex; gap: 8px; margin-bottom: 20px; }
   .mode-btn {
     flex: 1;
@@ -79,28 +87,22 @@
     color: #d4af61;
   }
   #personB { display: none; }
-  .city-wrap { position: relative; }
-  .city-dropdown {
-    position: absolute;
-    z-index: 10;
-    top: 100%;
-    left: 0;
-    right: 0;
-    background: #150c24;
-    border: 1px solid #4a3466;
-    border-radius: 3px;
-    margin-top: 2px;
-    max-height: 220px;
-    overflow-y: auto;
-    display: none;
+  .unknown-time-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 10px;
   }
-  .city-option {
-    padding: 10px 12px;
-    cursor: pointer;
-    font-size: 15px;
-    border-bottom: 1px solid #2a1d40;
+  .unknown-time-row input[type="checkbox"] {
+    width: auto;
+    margin: 0;
+    accent-color: #d4af61;
   }
-  .city-option:last-child { border-bottom: none; }
+  .unknown-time-row label {
+    color: #b8a6d9;
+    font-size: 14px;
+    margin: 0;
+  }
   .city-hint {
     color: #5a4a78;
     font-size: 12px;
@@ -189,30 +191,54 @@
 
   <div class="card" id="personA">
     <label class="section-label" id="labelA">Birth Details</label>
-    <input type="text" id="nameA" placeholder="Name">
+
+    <label class="field-label first" for="nameA">Full name</label>
+    <input type="text" id="nameA" placeholder="e.g. Aisha">
+
     <div class="row">
-      <input type="date" id="dateA" style="flex:1.3">
-      <input type="time" id="timeA" style="flex:1">
+      <div class="row-item">
+        <label class="field-label" for="dateA">Birth date</label>
+        <input type="date" id="dateA">
+      </div>
+      <div class="row-item">
+        <label class="field-label" for="timeA">Birth time</label>
+        <input type="time" id="timeA">
+      </div>
     </div>
-    <div class="city-wrap">
-      <input type="text" id="cityA" placeholder="Birth city — anywhere in the world" oninput="onCityInput('A')" autocomplete="off">
-      <div class="city-dropdown" id="dropdownA"></div>
-      <p class="city-hint">Pick a suggestion, or type the full city, state/region, country.</p>
+    <div class="unknown-time-row">
+      <input type="checkbox" id="unknownTimeA" onchange="toggleUnknownTime('A')">
+      <label for="unknownTimeA">I don't know my exact birth time</label>
     </div>
+
+    <label class="field-label" for="cityA">Birth city</label>
+    <input type="text" id="cityA" placeholder="e.g. Camden, New Jersey, USA">
+    <p class="city-hint">Format: City, State/Region, Country — this helps the calculator find the right location.</p>
   </div>
 
   <div class="card" id="personB">
     <label class="section-label">Person B</label>
-    <input type="text" id="nameB" placeholder="Name">
+
+    <label class="field-label first" for="nameB">Full name</label>
+    <input type="text" id="nameB" placeholder="e.g. Jordan">
+
     <div class="row">
-      <input type="date" id="dateB" style="flex:1.3">
-      <input type="time" id="timeB" style="flex:1">
+      <div class="row-item">
+        <label class="field-label" for="dateB">Birth date</label>
+        <input type="date" id="dateB">
+      </div>
+      <div class="row-item">
+        <label class="field-label" for="timeB">Birth time</label>
+        <input type="time" id="timeB">
+      </div>
     </div>
-    <div class="city-wrap">
-      <input type="text" id="cityB" placeholder="Birth city — anywhere in the world" oninput="onCityInput('B')" autocomplete="off">
-      <div class="city-dropdown" id="dropdownB"></div>
-      <p class="city-hint">Pick a suggestion, or type the full city, state/region, country.</p>
+    <div class="unknown-time-row">
+      <input type="checkbox" id="unknownTimeB" onchange="toggleUnknownTime('B')">
+      <label for="unknownTimeB">I don't know their exact birth time</label>
     </div>
+
+    <label class="field-label" for="cityB">Birth city</label>
+    <input type="text" id="cityB" placeholder="e.g. Camden, New Jersey, USA">
+    <p class="city-hint">Format: City, State/Region, Country — this helps the calculator find the right location.</p>
   </div>
 
   <button class="calc-btn" id="calcBtn" onclick="calculate()">Calculate</button>
@@ -249,50 +275,6 @@
 <script>
 const BIONIC_SIX = ["Sun", "Moon", "Ascendant", "Mercury", "Venus", "Mars"];
 let mode = "natal";
-let debounceTimers = {};
-let selectedPlace = { A: null, B: null };
-
-async function onCityInput(prefix) {
-  selectedPlace[prefix] = null;
-  const query = document.getElementById('city' + prefix).value;
-  const dropdown = document.getElementById('dropdown' + prefix);
-
-  clearTimeout(debounceTimers[prefix]);
-  if (!query || query.length < 2) {
-    dropdown.style.display = 'none';
-    return;
-  }
-
-  debounceTimers[prefix] = setTimeout(async () => {
-    try {
-      const res = await fetch('/api/geo?query=' + encodeURIComponent(query));
-      const data = await res.json();
-      const list = Array.isArray(data) ? data : (data.results || data.cities || []);
-      if (list.length === 0) {
-        dropdown.style.display = 'none';
-        return;
-      }
-      dropdown.innerHTML = list.map((g, i) => {
-        const label = [g.name || g.city, g.admin1 || g.region, g.country || g.country_name].filter(Boolean).join(', ');
-        return `<div class="city-option" data-idx="${i}" data-prefix="${prefix}">${label}</div>`;
-      }).join('');
-      dropdown.style.display = 'block';
-      dropdown.querySelectorAll('.city-option').forEach((el, i) => {
-        el.addEventListener('mousedown', (e) => e.preventDefault());
-        el.addEventListener('click', () => selectCity(prefix, list[i]));
-      });
-    } catch {
-      dropdown.style.display = 'none';
-    }
-  }, 400);
-}
-
-function selectCity(prefix, g) {
-  const label = [g.name || g.city, g.admin1 || g.region, g.country || g.country_name].filter(Boolean).join(', ');
-  document.getElementById('city' + prefix).value = label;
-  document.getElementById('dropdown' + prefix).style.display = 'none';
-  selectedPlace[prefix] = { lat: g.lat ?? g.latitude, lng: g.lng ?? g.longitude };
-}
 
 function setMode(m) {
   mode = m;
@@ -305,29 +287,32 @@ function setMode(m) {
   document.getElementById('errorBox').style.display = 'none';
 }
 
+function toggleUnknownTime(prefix) {
+  const checked = document.getElementById('unknownTime' + prefix).checked;
+  const timeInput = document.getElementById('time' + prefix);
+  timeInput.disabled = checked;
+  if (checked) timeInput.value = '';
+}
+
 function buildPayload(prefix) {
   const date = document.getElementById('date' + prefix).value;
-  const time = document.getElementById('time' + prefix).value || '00:00';
+  const unknownTime = document.getElementById('unknownTime' + prefix).checked;
+  const time = unknownTime ? '12:00' : (document.getElementById('time' + prefix).value || '00:00');
   const [year, month, day] = date.split('-').map(Number);
   const [hour, minute] = time.split(':').map(Number);
-  const payload = {
+  return {
     name: document.getElementById('name' + prefix).value || 'Subject',
     year, month, day, hour, minute,
     city: document.getElementById('city' + prefix).value,
-    tz_str: "AUTO"
+    tz_str: "AUTO",
+    time_known: !unknownTime
   };
-  const place = selectedPlace[prefix];
-  if (place && place.lat != null && place.lng != null) {
-    payload.lat = Number(place.lat);
-    payload.lng = Number(place.lng);
-  }
-  return payload;
 }
 
 function validPerson(prefix) {
-  return document.getElementById('date' + prefix).value &&
-         document.getElementById('time' + prefix).value &&
-         document.getElementById('city' + prefix).value;
+  const unknownTime = document.getElementById('unknownTime' + prefix).checked;
+  const timeOk = unknownTime || document.getElementById('time' + prefix).value;
+  return document.getElementById('date' + prefix).value && timeOk && document.getElementById('city' + prefix).value;
 }
 
 function extractPlanets(data) { return Array.isArray(data?.planets) ? data.planets : []; }
@@ -350,7 +335,7 @@ async function calculate() {
   document.getElementById('synastryResult').style.display = 'none';
 
   if (!validPerson('A') || (mode === 'synastry' && !validPerson('B'))) {
-    showError('Fill in the date, time, and city for everyone before calculating.');
+    showError('Fill in the date, city, and either a time or "I don\\'t know my birth time" for everyone before calculating.');
     return;
   }
 
