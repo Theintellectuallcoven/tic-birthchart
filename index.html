@@ -288,6 +288,7 @@
     </details>
     <details>
       <summary>Full Raw Response</summary>
+      <button onclick="copyRaw('rawResponse')" style="background:#3a2a54;border:none;color:#d4af61;padding:6px 12px;border-radius:3px;font-family:'Cinzel',serif;font-size:11px;letter-spacing:1px;text-transform:uppercase;cursor:pointer;margin-bottom:8px;">Copy Raw JSON</button>
       <pre id="rawResponse"></pre>
     </details>
   </div>
@@ -307,6 +308,7 @@
     </details>
     <details>
       <summary>Full Raw Response</summary>
+      <button onclick="copyRaw('synastryRaw')" style="background:#3a2a54;border:none;color:#d4af61;padding:6px 12px;border-radius:3px;font-family:'Cinzel',serif;font-size:11px;letter-spacing:1px;text-transform:uppercase;cursor:pointer;margin-bottom:8px;">Copy Raw JSON</button>
       <pre id="synastryRaw"></pre>
     </details>
   </div>
@@ -410,6 +412,19 @@ function validPerson(prefix) {
   const unknownTime = document.getElementById('unknownTime' + prefix).checked;
   const timeOk = unknownTime || document.getElementById('time' + prefix).value;
   return document.getElementById('date' + prefix).value && timeOk && document.getElementById('city' + prefix).value;
+}
+
+function copyRaw(elementId) {
+  const text = document.getElementById(elementId).textContent;
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(() => {
+      alert('Copied! Paste it wherever you need it.');
+    }).catch(() => {
+      alert('Could not copy automatically — try selecting the text manually.');
+    });
+  } else {
+    alert('Copy not supported on this browser — try selecting the text manually.');
+  }
 }
 
 function extractPlanets(data) { return Array.isArray(data?.planets) ? data.planets : []; }
